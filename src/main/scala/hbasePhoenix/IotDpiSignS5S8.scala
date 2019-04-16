@@ -26,7 +26,7 @@ object IotDpiSignS5S8 {
     val dataTime = appName.substring(appName.lastIndexOf("_") + 1)
 
     val dirSize = fileSystem.getContentSummary(new Path(input + "/"+dataTime+"/")).getLength
-    println("------------------------" + dirSize + "------------------------")
+    //println("------------------------" + dirSize + "------------------------")
 
     if(dirSize < 1*1024*1024*1024){
       val rowRdd = sc.textFile(input + "/"+dataTime+"/").map(x => parse(x)).filter(_.length!=1)
