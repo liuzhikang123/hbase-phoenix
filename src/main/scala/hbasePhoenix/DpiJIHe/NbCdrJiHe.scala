@@ -1,9 +1,11 @@
 package hbasePhoenix.DpiJIHe
 
+import java.io.InputStream
 import java.sql.{DriverManager, Timestamp}
 
 import org.apache.spark.sql.{Row, SparkSession}
 import java.text.SimpleDateFormat
+import java.util.Properties
 
 /**
   * Created by liuzk on 19-4-16.
@@ -26,10 +28,17 @@ object NbCdrJiHe {
     val thisTimeStamp = tranTimeToLong(dataTime)
     val todayTimeStamp = tranTimeToLong(todayTime)
 
-    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
-    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
-    val jdbcUser = "epcslview"
-    val jdbcPassword = "epc_slview129"
+    //    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
+    //    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
+    //    val jdbcUser = "epcslview"
+    //    val jdbcPassword = "epc_slview129"
+    val postgprop = new Properties()
+    val ipstream: InputStream = this.getClass().getResourceAsStream("/oracle.properties")
+    postgprop.load(ipstream)
+    val jdbcDriver = postgprop.getProperty("oracle.driver")
+    val jdbcUrl = postgprop.getProperty("oracle.url")
+    val jdbcUser = postgprop.getProperty("oracle.user")
+    val jdbcPassword= postgprop.getProperty("oracle.password")
 
 
 

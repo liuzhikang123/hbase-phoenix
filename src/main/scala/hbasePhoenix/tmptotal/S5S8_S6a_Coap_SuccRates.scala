@@ -1,6 +1,8 @@
 package hbasePhoenix.tmptotal
 
+import java.io.InputStream
 import java.sql.{DriverManager, PreparedStatement, Timestamp}
+import java.util.Properties
 
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
@@ -27,10 +29,17 @@ object S5S8_S6a_Coap_SuccRates {
     val statime = dataTime.substring(0,4) + "/" + dataTime.substring(4,6) + "/" + dataTime.substring(6,8)+
       ' ' + dataTime.substring(8,10) + ":" +dataTime.substring(10,11) + '0'+":00"//2018/11/29 13:10:00
     val oraclrTime =new java.util.Date(statime)
-    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
-    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
-    val jdbcUser = "epcslview"
-    val jdbcPassword = "epc_slview129"
+    //    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
+    //    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
+    //    val jdbcUser = "epcslview"
+    //    val jdbcPassword = "epc_slview129"
+    val postgprop = new Properties()
+    val ipstream: InputStream = this.getClass().getResourceAsStream("/oracle.properties")
+    postgprop.load(ipstream)
+    val jdbcDriver = postgprop.getProperty("oracle.driver")
+    val jdbcUrl = postgprop.getProperty("oracle.url")
+    val jdbcUser = postgprop.getProperty("oracle.user")
+    val jdbcPassword= postgprop.getProperty("oracle.password")
 
 
 

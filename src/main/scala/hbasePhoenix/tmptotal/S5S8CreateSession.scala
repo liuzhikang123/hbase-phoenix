@@ -1,6 +1,8 @@
 package hbasePhoenix.tmptotal
 
+import java.io.InputStream
 import java.sql.{DriverManager, PreparedStatement}
+import java.util.Properties
 
 import org.apache.spark.sql.{SaveMode, SparkSession}
 
@@ -20,10 +22,17 @@ object S5S8CreateSession {
     val dataTime = appName.substring(appName.lastIndexOf("_") + 1)
     val statime = dataTime.substring(0,4) + "/" + dataTime.substring(4,6) + "/" + dataTime.substring(6,8)
     val oraclrTime =new java.util.Date(statime)
-    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
-    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
-    val jdbcUser = "epcslview"
-    val jdbcPassword = "epc_slview129"
+    //    val jdbcDriver = "oracle.jdbc.driver.OracleDriver"
+    //    val jdbcUrl = "jdbc:oracle:thin:@100.66.124.129:1521:dbnms"
+    //    val jdbcUser = "epcslview"
+    //    val jdbcPassword = "epc_slview129"
+    val postgprop = new Properties()
+    val ipstream: InputStream = this.getClass().getResourceAsStream("/oracle.properties")
+    postgprop.load(ipstream)
+    val jdbcDriver = postgprop.getProperty("oracle.driver")
+    val jdbcUrl = postgprop.getProperty("oracle.url")
+    val jdbcUser = postgprop.getProperty("oracle.user")
+    val jdbcPassword= postgprop.getProperty("oracle.password")
 
 
     import spark.implicits._
