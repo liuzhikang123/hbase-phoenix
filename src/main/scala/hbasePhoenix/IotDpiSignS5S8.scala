@@ -35,7 +35,7 @@ object IotDpiSignS5S8 {
       df.filter("length(MSISDN)>0").repartition(repartitionNum).write.format("orc").mode(SaveMode.Overwrite)
         .save(output+"/"+dataTime)
 
-      val newDf = sqlContext.read.format("orc").load(output+"/"+dataTime)
+      val newDf = sqlContext.read.format("orc").load(output+"/"+dataTime).filter("APN like '%ctnb%' or RAT='8'")
 
       newDf.selectExpr(
         "Interface",
