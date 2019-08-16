@@ -25,15 +25,15 @@ object IotDpiUserS1UHTTP_HttpStatus {
 
     import sqlContext.implicits._
     val df = sc.textFile(input + "/"+ dataTime +"/").map(x=>x.split("\\|",-1)).filter(_.length==100)
-      .map(x=>(x(2),x(20),x(21),x(5),x(69),x(66),x(75)))
-      .toDF("MSISDN","StartTime","EndTime","DestinationIP","Host","UserAgent","HttpStatus")
+      .map(x=>(x(2),x(4),x(20),x(21),x(5),x(69),x(66),x(75)))
+      .toDF("MSISDN","APN","StartTime","EndTime","DestinationIP","Host","UserAgent","HttpStatus")// + APN
 
     df.filter(df.col("HttpStatus")==="302" or df.col("HttpStatus")==="")
       .coalesce(repartitionNum).write.format("orc").mode(SaveMode.Overwrite)
       .save(output + dataTime)
 
     val newDf = sqlContext.read.format("orc").load(output + dataTime)
-    val resultDF = newDf.selectExpr("MSISDN","StartTime","EndTime","DestinationIP","Host","UserAgent","HttpStatus")
+    val resultDF = newDf.selectExpr("MSISDN","APN","StartTime","EndTime","DestinationIP","Host","UserAgent","HttpStatus")
 
     resultDF.write.format("org.apache.phoenix.spark").
       mode(SaveMode.Overwrite).options( Map("table" -> htable,
