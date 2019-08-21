@@ -20,6 +20,9 @@ object NbCdrJiHe {
     val todayTime = sc.getConf.get("spark.app.todayTime", "20190417")
     val S5S8Path = sc.getConf.get("spark.app.S5S8Path", "/user/slview/Dpi/S5S8_phoenix/")
     val CoapPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1ucoap_phoenix/")
+    //新增S1u S1umqtt
+    val S1uPath = sc.getConf.get("spark.app.S1uPath", "/user/slview/Dpi/S1u_phoenix/")
+    val S1umqttPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1umqtt_phoenix/")
 
     val dataTime = appName.substring(appName.lastIndexOf("_") + 1)
     val statime = dataTime.substring(0,4) + "/" + dataTime.substring(4,6) + "/" + dataTime.substring(6,8)
@@ -42,9 +45,12 @@ object NbCdrJiHe {
 
 
 
-    val CoapDF = spark.read.format("orc").load(CoapPath + dataTime + "*", CoapPath + todayTime + "00*")
+    val CoapDF = spark.read.format("orc").load(CoapPath + dataTime + "*", CoapPath + todayTime + "00*",
+      S1uPath + dataTime + "*", S1uPath + todayTime + "00*",
+      S1umqttPath + dataTime + "*", S1umqttPath + todayTime + "00*")
       .filter(s"APN='psma.edrx0.ctnb.mnc011.mcc460.gprs' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
       .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
+    //新增S1u S1umqtt
 
     val tempTable_coap = "tempTable_coap"
     CoapDF.createTempView(tempTable_coap)
