@@ -23,6 +23,7 @@ object NbCdrJiHe {
     //新增S1u S1umqtt
     val S1uPath = sc.getConf.get("spark.app.S1uPath", "/user/slview/Dpi/S1u_phoenix/")
     val S1umqttPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1umqtt_phoenix/")
+    val S1uhttpPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1uhttp_phoenix/")
 
     val outputPath = sc.getConf.get("spark.app.outputPath", "/user/slview/Dpi/tmp/NbCdrJiHe")
 
@@ -49,11 +50,48 @@ object NbCdrJiHe {
 
     spark.read.format("orc").load(CoapPath + dataTime + "*", CoapPath + todayTime + "00*",
       S1uPath + dataTime + "*", S1uPath + todayTime + "00*",
-      S1umqttPath + dataTime + "*", S1umqttPath + todayTime + "00*")
-      .filter(s"APN='psma.edrx0.ctnb.mnc011.mcc460.gprs' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
+      S1umqttPath + dataTime + "*", S1umqttPath + todayTime + "00*")//  psma.edrx0.ctnb.mnc011.mcc460.gprs
+      .filter(s"APN like 'psma.edrx0.ctnb%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
       .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
       .coalesce(100).write.format("orc").mode(SaveMode.Overwrite)
       .save(outputPath)
+//    try {
+//      for (hour <- 0 to 9) {
+//        spark.read.format("orc").load(S1uhttpPath + dataTime + s"0${hour}*")
+//          .filter(s"APN like 'ctnet%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
+//          .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
+//          .coalesce(1000).write.format("orc").mode(SaveMode.Overwrite).save(outputPath + "_tmphttp" + s"/0${hour}")
+//      }
+//    }catch{
+//      case e: Exception => {
+//        //e.printStackTrace()
+//      }
+//    }
+//
+//    try {
+//      for (hour <- 10 to 23) {
+//        spark.read.format("orc").load(S1uhttpPath + dataTime + s"${hour}*")
+//          .filter(s"APN like 'ctnet%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
+//          .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
+//          .coalesce(1000).write.format("orc").mode(SaveMode.Overwrite).save(outputPath + "_tmphttp" + s"/${hour}")
+//      }
+//    }catch{
+//      case e: Exception => {
+//        //e.printStackTrace()
+//      }
+//    }
+//
+//
+//    spark.read.format("orc").load(S1uhttpPath + todayTime + "00*")
+//      .filter(s"APN like 'ctnet%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
+//      .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
+//      .write.format("orc").mode(SaveMode.Overwrite).save(outputPath + "_tmphttp" + "/24")
+//
+//    spark.read.format("orc").load(S1uPath + dataTime + "*", S1uPath + todayTime + "00*")
+//      .filter(s"APN like 'ctnet%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
+//      .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
+//      .repartition(100).write.format("orc").mode(SaveMode.Overwrite)
+//      .save(outputPath)
 
     val CoapDF = spark.read.format("orc").load(outputPath)
     //新增S1u S1umqtt
@@ -79,6 +117,8 @@ object NbCdrJiHe {
          |where PGWIP like '115.170.15.%'
        """.stripMargin)
 
+
+
     //CoapDF_PGW1.union(CoapDF_PGW2).write.format("orc").mode(SaveMode.Overwrite).save(outputPath+"_tmp")
 
     val CoapDF_result = CoapDF_PGW1.union(CoapDF_PGW2).collect()
@@ -86,8 +126,8 @@ object NbCdrJiHe {
 
 
 
-    spark.read.format("orc").load(S5S8Path + dataTime + "*", S5S8Path + todayTime + "00*")
-      .filter(s"APN='ctnb.mnc011.mcc460.gprs' and (PGW_IP_Add like '115.170.14.%' or PGW_IP_Add like '115.170.15.%') and Procedure_Start_Time>'${thisTimeStamp}' and Procedure_Start_Time<'${todayTimeStamp}' and (Result_Code='16' or Result_Code='17' or Result_Code='18' or Result_Code='19')")
+    spark.read.format("orc").load(S5S8Path + dataTime + "*", S5S8Path + todayTime + "00*")// 'ctnb.mnc011.mcc460.gprs'
+      .filter(s"APN like 'ctnb%' and (PGW_IP_Add like '115.170.14.%' or PGW_IP_Add like '115.170.15.%') and Procedure_Start_Time>'${thisTimeStamp}' and Procedure_Start_Time<'${todayTimeStamp}' and (Result_Code='16' or Result_Code='17' or Result_Code='18' or Result_Code='19')")
       .selectExpr("PGW_IP_Add","MSISDN", "Procedure_Type", "Procedure_Status")
       .coalesce(100).write.format("orc").mode(SaveMode.Overwrite)
       .save(outputPath + "1")
