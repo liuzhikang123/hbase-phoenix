@@ -45,7 +45,7 @@ object IotDpiCheckSgwip {
        """.stripMargin).filter("SGW_IP_Add is null").selectExpr("sgw_add_ip").dropDuplicates("sgw_add_ip")
 
     //先追加到基础库里
-    newSgwAddIpDF.write.format("orc").mode(SaveMode.Append).save(outputPath + "data")
+    newSgwAddIpDF.selectExpr("sgw_add_ip as SGW_IP_Add").write.format("orc").mode(SaveMode.Append).save(outputPath + "data")
 
     insert2Tidb(tidbTable, newSgwAddIpDF)
 
