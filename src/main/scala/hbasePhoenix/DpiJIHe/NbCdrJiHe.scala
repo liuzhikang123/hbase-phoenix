@@ -7,6 +7,8 @@ import org.apache.spark.sql.{Row, SaveMode, SparkSession}
 import java.text.SimpleDateFormat
 import java.util.Properties
 
+import org.apache.hadoop.fs.{FileSystem, Path}
+
 /**
   * Created by liuzk on 19-4-16.
   *
@@ -25,7 +27,9 @@ object NbCdrJiHe {
     val S1umqttPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1umqtt_phoenix/")
     val S1uhttpPath = sc.getConf.get("spark.app.S1ucoapPath", "/user/slview/Dpi/S1uhttp_phoenix/")
 
-    val outputPath = sc.getConf.get("spark.app.outputPath", "/user/slview/Dpi/tmp/NbCdrJiHe")
+    //val outputPath = sc.getConf.get("spark.app.outputPath", "/user/slview/Dpi/tmp/NbCdrJiHe")
+    val outputPath = sc.getConf.get("spark.app.outputPath", "/user/slview/Dpi/tmp/NbCdrJiHe/")
+    val checklistPath = outputPath + "checklist/"
 
     val dataTime = appName.substring(appName.lastIndexOf("_") + 1)
     val statime = dataTime.substring(0,4) + "/" + dataTime.substring(4,6) + "/" + dataTime.substring(6,8)
@@ -46,6 +50,30 @@ object NbCdrJiHe {
     val jdbcUser = postgprop.getProperty("oracle.user")
     val jdbcPassword= postgprop.getProperty("oracle.password")
 
+    //checklist文件个数， 统计需的24小时文件个数
+    //S5S8_NUM_DAY   S1U_NUM_DAY  MQTT_NUM_DAY  COAP_NUM_DAY
+    //DPI_S5S8_NUM_DAY   DPI_S1U_NUM_DAY  DPI_MQTT_NUM_DAY  DPI_COAP_NUM_DAY
+    val fileSystem = FileSystem.get(sc.hadoopConfiguration)
+    val S5S8_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S5S8/" + dataTime + "*_done/*")).length
+    val S1U_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1u/" + dataTime + "*_done/*")).length
+    val MQTT_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1umqtt/" + dataTime + "*_done/*")).length
+    val COAP_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1ucoap/" + dataTime + "*_done/*")).length
+    import spark.implicits._
+    val checklistDF = sc.textFile(checklistPath + "*" + dataTime + "*").map(x=>x.split(",")).map(x=>(x(0),x(1))).toDF("filename","filedir")
+    val DPI_S5S8_NUM_DAY = checklistDF.filter("filename like 'S5s8%'").count()//S5s8 S1u S1umqtt S1ucoap
+    val DPI_S1U_NUM_DAY = checklistDF.filter("filename like 'S1u%'").count()
+    val DPI_MQTT_NUM_DAY = checklistDF.filter("filename like 'S1umqtt%'").count()
+    val DPI_COAP_NUM_DAY = checklistDF.filter("filename like 'S1ucoap%'").count()
+    val dpiFileNumArr = Array(
+      Row(dataTime, "S5S8_NUM_DAY", "ALL", S5S8_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "S1U_NUM_DAY", "ALL", S1U_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "MQTT_NUM_DAY", "ALL", MQTT_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "COAP_NUM_DAY", "ALL", COAP_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "DPI_S5S8_NUM_DAY", "ALL", DPI_S5S8_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "DPI_S1U_NUM_DAY", "ALL", DPI_S1U_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "DPI_MQTT_NUM_DAY", "ALL", DPI_MQTT_NUM_DAY, "-1", "-1", "-1"),
+      Row(dataTime, "DPI_COAP_NUM_DAY", "ALL", DPI_COAP_NUM_DAY, "-1", "-1", "-1"))
+
 
 
     spark.read.format("orc").load(CoapPath + dataTime + "*", CoapPath + todayTime + "00*",
@@ -54,7 +82,7 @@ object NbCdrJiHe {
       .filter(s"APN like 'psma.edrx0.ctnb%' and (PGWIP like '115.170.14.%' or PGWIP like '115.170.15.%') and StartTime>'${dataTime}' and StartTime<'${todayTime}' and (OutputOctets>0 or InputOctets>0)")
       .selectExpr("PGWIP", "MSISDN", "OutputOctets", "InputOctets")
       .coalesce(100).write.format("orc").mode(SaveMode.Overwrite)
-      .save(outputPath)
+      .save(outputPath + "0")
 //    try {
 //      for (hour <- 0 to 9) {
 //        spark.read.format("orc").load(S1uhttpPath + dataTime + s"0${hour}*")
@@ -93,7 +121,7 @@ object NbCdrJiHe {
 //      .repartition(100).write.format("orc").mode(SaveMode.Overwrite)
 //      .save(outputPath)
 
-    val CoapDF = spark.read.format("orc").load(outputPath)
+    val CoapDF = spark.read.format("orc").load(outputPath + "0")
     //新增S1u S1umqtt
 
     val tempTable_coap = "tempTable_coap"
@@ -147,7 +175,7 @@ object NbCdrJiHe {
       Row(dataTime, "S5C", "PGW2", S5S8DF_PGW2_CM, S5S8DF_PGW2_CZ, "-1", "-1"))
 
 
-    val DpiDF_result = CoapDF_result.union(S5S8DF_result)
+    val DpiDF_result = CoapDF_result.union(S5S8DF_result).union(dpiFileNumArr)
     insertByJDBC(DpiDF_result)
 
     //////////////Iot_checkdpiandcdr
