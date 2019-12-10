@@ -30,7 +30,7 @@ object IotDpiUserS1UHTTP {
     df.filter("length(MSISDN)>0").coalesce(repartitionNum).write.format("orc").mode(SaveMode.Overwrite)
       .save(output+"/"+dataTime)
 
-    val newDf = sqlContext.read.format("orc").load(output+"/"+dataTime)
+    /*val newDf = sqlContext.read.format("orc").load(output+"/"+dataTime)
 
     newDf.selectExpr(
       //"Interface",
@@ -133,15 +133,15 @@ object IotDpiUserS1UHTTP {
 //      "FirstScreenFinTime"
     ).write.format("org.apache.phoenix.spark").
       mode(SaveMode.Overwrite).options( Map("table" -> htable,
-      "zkUrl" -> zkUrl)).save()
+      "zkUrl" -> zkUrl)).save()*/
 
-    val dpiPath = new Path(input + "/"+dataTime)
+    /*val dpiPath = new Path(input + "/"+dataTime)
     val dpiPath_done = new Path(input + "/"+dataTime+"_done")
 
     if (!fileSystem.exists(dpiPath_done.getParent)) {
       fileSystem.mkdirs(dpiPath_done.getParent)
     }
-    fileSystem.rename(dpiPath, dpiPath_done)
+    fileSystem.rename(dpiPath, dpiPath_done)*/
 
   }
   val struct = StructType(Array(
