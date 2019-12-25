@@ -61,10 +61,10 @@ object NbCdrJiHe {
     import spark.implicits._
     val checklistDF = sc.textFile(checklistPath + "*" + dataTime + "*").map(x=>x.split(",")).filter(_.length>1)
       .map(x=>(x(0),x(1))).toDF("filename","filedir")
-    val DPI_S5S8_NUM_DAY = checklistDF.filter("filename like 'S5s8%'").count()//S5s8 S1u S1umqtt S1ucoap
-    val DPI_S1U_NUM_DAY = checklistDF.filter("filename like 'S1u%'").count()
-    val DPI_MQTT_NUM_DAY = checklistDF.filter("filename like 'S1umqtt%'").count()
-    val DPI_COAP_NUM_DAY = checklistDF.filter("filename like 'S1ucoap%'").count()
+    val DPI_S5S8_NUM_DAY = checklistDF.filter("filename like 'S5s8-%'").count()//S5s8 S1u S1umqtt S1ucoap
+    val DPI_S1U_NUM_DAY = checklistDF.filter("filename like 'S1u-%'").count()
+    val DPI_MQTT_NUM_DAY = checklistDF.filter("filename like 'S1umqtt-%'").count()
+    val DPI_COAP_NUM_DAY = checklistDF.filter("filename like 'S1ucoap-%'").count()
     val dpiFileNumArr = Array(
       Row(dataTime, "S5S8_NUM_DAY", "ALL", S5S8_NUM_DAY, "-1", "-1", "-1"),
       Row(dataTime, "S1U_NUM_DAY", "ALL", S1U_NUM_DAY, "-1", "-1", "-1"),
