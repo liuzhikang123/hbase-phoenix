@@ -54,12 +54,12 @@ object NbCdrJiHe {
     //S5S8_NUM_DAY   S1U_NUM_DAY  MQTT_NUM_DAY  COAP_NUM_DAY
     //DPI_S5S8_NUM_DAY   DPI_S1U_NUM_DAY  DPI_MQTT_NUM_DAY  DPI_COAP_NUM_DAY
     val fileSystem = FileSystem.get(sc.hadoopConfiguration)
-    val S5S8_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S5S8/" + dataTime + "*_done/*")).length
-    val S1U_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1u/" + dataTime + "*_done/*")).length
-    val MQTT_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1umqtt/" + dataTime + "*_done/*")).length
-    val COAP_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1ucoap/" + dataTime + "*_done/*")).length
+    val S5S8_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S5S8/*_done/" + "*"+dataTime+"*")).length
+    val S1U_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1u/*_done/" + "*"+dataTime+"*")).length
+    val MQTT_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1umqtt/*_done/" + "*"+dataTime+"*")).length
+    val COAP_NUM_DAY = fileSystem.globStatus(new Path("/user/slview/Dpi/S1ucoap/*_done/" + "*"+dataTime+"*")).length
     import spark.implicits._
-    val checklistDF = sc.textFile(checklistPath + "*" + dataTime + "*").map(x=>x.split(",")).filter(_.length>1)
+    val checklistDF = sc.textFile(checklistPath + "*" + dataTime + "*-*").map(x=>x.split(",")).filter(_.length>1)
       .map(x=>(x(0),x(1))).toDF("filename","filedir")
     val DPI_S5S8_NUM_DAY = checklistDF.filter("filename like 'S5s8-%'").count()//S5s8 S1u S1umqtt S1ucoap
     val DPI_S1U_NUM_DAY = checklistDF.filter("filename like 'S1u-%'").count()
