@@ -20,7 +20,7 @@ object IotDpiUserS1UHTTP_JIHE {
     val htable = sc.getConf.get("spark.app.htable", "IOT_DPI_USER_S1U_HTTP_JIHE_201902")
     val output = sc.getConf.get("spark.app.output", "/user/slview/Dpi/S1uhttp_phoenix/jihe/")
     val repartitionNum = sc.getConf.get("spark.app.repartitionNum", "1").toInt
-    val appName = sc.getConf.get("spark.app.name")
+    val appName = sc.getConf.get("spark.app.name")//2020031017
     val dataTime = appName.substring(appName.lastIndexOf("_") + 1)
 
     val rdd1 = sc.textFile(input + "/"+dataTime+"*/").filter(x=>x.contains("861410307300000"))
@@ -29,8 +29,21 @@ object IotDpiUserS1UHTTP_JIHE {
     //val rowRdd = sc.textFile(input + "/"+dataTime+"*/").map(x => parse(x)).filter(_.length!=1)
     val df = sqlContext.createDataFrame(rowRdd, struct)
 
-    df.filter("length(MSISDN)>0").write.format("orc").mode(SaveMode.Overwrite)
-      .save(output + dataTime)
+    df.filter("length(MSISDN)>0")
+        .dropDuplicates(Seq(//有重复的http文件，先暂时做成这样去重。。。
+          "StartTime",
+          "EndTime",
+          "MSISDN",
+          "IMSI",
+          "APN",
+
+          "PGWIP",
+          "DestinationURL",
+          "UserIP",
+          "UserPort",
+          "SourceIP",
+          "SourcePort"))
+      .write.format("orc").mode(SaveMode.Overwrite).save(output + dataTime)
 
     val newDf = sqlContext.read.format("orc").load(output + dataTime)
 
@@ -82,20 +95,21 @@ object IotDpiUserS1UHTTP_JIHE {
       val IMSI = fields(1)
       val MSISDN = fields(2)
       val APN = fields(4)
-      val SourceIP = fields(7)
-      val SourcePort = fields(8)
+      val SourceIP = fields(5)
+      val SourcePort = fields(6)
 
       val PGWIP = fields(11)
       val StartTime = fields(20)
       val EndTime = fields(21)
-      val UserIP = fields(43)
-      val UserPort = fields(44)
+      val UserIP = fields(7)
+      val UserPort = fields(8)
 
-      val DestinationURL = fields(65)
+      val DestinationURL = fields(67)
+      val Host = fields(69)
 
       Row(IMSI,MSISDN,APN, SourceIP,SourcePort,
         PGWIP,StartTime, EndTime, UserIP, UserPort,
-        DestinationURL)
+        Host + DestinationURL)
 
     } catch {
       case e: Exception => {
