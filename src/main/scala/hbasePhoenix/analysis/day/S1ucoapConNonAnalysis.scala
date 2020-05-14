@@ -8,6 +8,7 @@ import org.apache.spark.sql.{SaveMode, SparkSession}
 
 /**
   * Created by liuzk on 20-04-20.
+  * 18236
   * 企业级 分接入省市的 NB
   * 上行CON消息请求数   上行CON消息成功数   上行NON消息数   上行CON成功率
   * 入到TIDB里面    --需求黄志慧
@@ -43,14 +44,19 @@ object S1ucoapConNonAnalysis {
     val s1ucoapTable = "s1ucoapTable"
     spark.read.format("orc").load(s1ucoaPath + dataTime+"*")
       .filter("APN like '%ctnb%'")
-      .selectExpr("MSISDN", "ProcedureType", "Direction", "Status", "enb_id")
+      .selectExpr("MSISDN", "ProcedureType", "Direction", "Status", "enb_id", "'NB' networktype")
+      .union(
+          spark.read.format("orc").load(s1ucoaPath + dataTime+"*")
+            .filter("APN not like '%ctnb%'")
+            .selectExpr("MSISDN", "ProcedureType", "Direction", "Status", "enb_id", "'4G' networktype")
+       )
       .createTempView(s1ucoapTable)
 
 
     val unionTable = "unionTable"
     spark.sql(
       s"""
-         |select c.custid, b.provName, b.cityName, a.ProcedureType, a.Direction, a.Status
+         |select c.custid, b.provName, b.cityName, a.ProcedureType, a.Direction, a.Status, a.networktype
          |from ${s1ucoapTable}  a
          |left join ${bsTable}  b on(a.enb_id=b.enbid)
          |left join ${crmTable} c on(a.MSISDN=c.mdn)
@@ -59,13 +65,15 @@ object S1ucoapConNonAnalysis {
 
     val df = spark.sql(
       s"""
-         |select custid, provName, cityName,
-         |sum(case when ProcedureType='1' then 1 else 0 end) upConcnt,
-         |sum(case when ProcedureType='1' and (Status=0 or Status=2) then 1 else 0 end) upConSucccnt,
-         |sum(case when ProcedureType='2' then 1 else 0 end) upNoncnt
+         |select custid, provName, cityName, networktype,
+         |sum(case when Direction='1' and ProcedureType='1' then 1 else 0 end) upConcnt,
+         |sum(case when Direction='1' and ProcedureType='1' and (Status=0 or Status=2) then 1 else 0 end) upConSucccnt,
+         |sum(case when Direction='1' and ProcedureType='2' then 1 else 0 end) upNoncnt,
+         |sum(case when Direction='2' and ProcedureType='1' then 1 else 0 end) downConcnt,
+         |sum(case when Direction='2' and ProcedureType='1' and (Status=0 or Status=2) then 1 else 0 end) downConSucccnt,
+         |sum(case when Direction='2' and ProcedureType='2' then 1 else 0 end) downNoncnt
          |from ${unionTable}
-         |where Direction='1'
-         |group by custid, provName, cityName
+         |group by custid, provName, cityName, networktype
        """.stripMargin)
 
 //    df.show()
@@ -73,7 +81,9 @@ object S1ucoapConNonAnalysis {
 //    df.write.format("orc").mode(SaveMode.Overwrite).save("/user/slview/Dpi/tmp/tmp20200420")
 
     val resultCollect = df
-      .selectExpr(s"'${dataTime}' datatime", "custid", "provName", "cityName", "upConcnt", "upConSucccnt", "upNoncnt", "round(upConSucccnt*100/upConcnt,2) upConRate")
+      .selectExpr(s"'${dataTime}' datatime", "custid", "provName", "cityName", "networktype",
+        "upConcnt", "upConSucccnt", "upNoncnt", "round(upConSucccnt*100/upConcnt,2) upConRate",
+        "downConcnt", "downConSucccnt", "downNoncnt", "round(downConSucccnt*100/downConcnt,2) downConRate")
       .rdd.collect()
 
 
@@ -84,8 +94,9 @@ object S1ucoapConNonAnalysis {
       val sql =
         s"""
            |insert into iot_dpi_ana_s1ucoapconnon_prov
-           |(datatime, custid, provName, cityName, upConcnt, upConSucccnt, upNoncnt, upConRate)
-           |values (?,?,?,?,?,?,?,?)
+           |(datatime, custid, provName, cityName, networktype, upConcnt, upConSucccnt, upNoncnt, upConRate,
+           |downConcnt, downConSucccnt, downNoncnt, downConRate)
+           |values (?,?,?,?,?,?,?,?,?,?,?,?,?)
        """.stripMargin
 
       val pstmt = dbConn.prepareStatement(sql)
@@ -96,19 +107,31 @@ object S1ucoapConNonAnalysis {
         val custid = coverNull(r(1))
         val provName = coverNull(r(2))
         val cityName = coverNull(r(3))
-        val upConcnt = coverNull(r(4)).toInt
-        val upConSucccnt = coverNull(r(5)).toInt
-        val upNoncnt = coverNull(r(6)).toInt
-        val upConRate = coverNull(r(7)).toString.toDouble
+        val networktype = coverNull(r(4))
+        val upConcnt = coverNull(r(5)).toInt
+        val upConSucccnt = coverNull(r(6)).toInt
+        val upNoncnt = coverNull(r(7)).toInt
+        val upConRate = coverNull(r(8)).toString.toDouble
+
+        val downConcnt = coverNull(r(9)).toInt
+        val downConSucccnt = coverNull(r(10)).toInt
+        val downNoncnt = coverNull(r(11)).toInt
+        val downConRate = coverNull(r(12)).toString.toDouble
 
         pstmt.setString(1, datatime)
         pstmt.setString(2, custid)
         pstmt.setString(3, provName)
         pstmt.setString(4, cityName)
-        pstmt.setInt(5, upConcnt)
-        pstmt.setInt(6, upConSucccnt)
-        pstmt.setInt(7, upNoncnt)
-        pstmt.setDouble(8, upConRate)
+        pstmt.setString(5, networktype)
+        pstmt.setInt(6, upConcnt)
+        pstmt.setInt(7, upConSucccnt)
+        pstmt.setInt(8, upNoncnt)
+        pstmt.setDouble(9, upConRate)
+
+        pstmt.setInt(10, downConcnt)
+        pstmt.setInt(11, downConSucccnt)
+        pstmt.setInt(12, downNoncnt)
+        pstmt.setDouble(13, downConRate)
 
         i += 1
         pstmt.addBatch()
@@ -151,5 +174,9 @@ object S1ucoapConNonAnalysis {
 //`upConcnt` int(10) DEFAULT NULL,
 //`upConSucccnt` int(10) DEFAULT NULL,
 //`upNoncnt` int(10) DEFAULT NULL,
-//`upConRate` decimal(5,2) DEFAULT NULL
+//`upConRate` decimal(5,2) DEFAULT NULL,
+//`downConcnt` int(10) DEFAULT NULL,
+//`downConSucccnt` int(10) DEFAULT NULL,
+//`downNoncnt` int(10) DEFAULT NULL,
+//`downConRate` decimal(5,2) DEFAULT NULL
 //) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
